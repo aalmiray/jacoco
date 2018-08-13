@@ -6,7 +6,7 @@
  * http://www.eclipse.org/legal/epl-v10.html
  *
  * Contributors:
- *    Marc R. Hoffmann - initial API and implementation
+ *    Evgeny Mandrikov - initial API and implementation
  *
  *******************************************************************************/
 package org.jacoco.core.internal.analysis.filter;
@@ -21,44 +21,32 @@ import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.MethodNode;
 
-public class LombokGeneratedFilterTest implements IFilterOutput {
+public class AnnotationGeneratedFilterTest implements IFilterOutput {
 
-	private final IFilter filter = new LombokGeneratedFilter();
+	private final IFilter filter = new AnnotationGeneratedFilter();
+
+	private final FilterContextMock context = new FilterContextMock();
 
 	private AbstractInsnNode fromInclusive;
 	private AbstractInsnNode toInclusive;
 
 	@Test
-	public void testNoAnnotations() {
+	public void should_filter_methods_annotated_with_runtime_visible_org_groovy_transform_Generated() {
 		final MethodNode m = new MethodNode(InstrSupport.ASM_API_VERSION, 0,
 				"hashCode", "()I", null, null);
+		m.visitAnnotation("Lgroovy/transform/Generated;", true);
 
 		m.visitInsn(Opcodes.ICONST_0);
 		m.visitInsn(Opcodes.IRETURN);
 
-		filter.filter(m, new FilterContextMock(), this);
+		filter.filter(m, context, this);
 
-		assertNull(fromInclusive);
-		assertNull(toInclusive);
+		assertEquals(m.instructions.getFirst(), fromInclusive);
+		assertEquals(m.instructions.getLast(), toInclusive);
 	}
 
 	@Test
-	public void testOtherAnnotation() {
-		final MethodNode m = new MethodNode(InstrSupport.ASM_API_VERSION, 0,
-				"hashCode", "()I", null, null);
-		m.visitAnnotation("Lother/Annotation;", false);
-
-		m.visitInsn(Opcodes.ICONST_0);
-		m.visitInsn(Opcodes.IRETURN);
-
-		filter.filter(m, new FilterContextMock(), this);
-
-		assertNull(fromInclusive);
-		assertNull(toInclusive);
-	}
-
-	@Test
-	public void testLombokGeneratedAnnotation() {
+	public void should_filter_methods_annotated_with_runtime_invisible_lombok_Generated() {
 		final MethodNode m = new MethodNode(InstrSupport.ASM_API_VERSION, 0,
 				"hashCode", "()I", null, null);
 		m.visitAnnotation("Llombok/Generated;", false);
@@ -66,10 +54,57 @@ public class LombokGeneratedFilterTest implements IFilterOutput {
 		m.visitInsn(Opcodes.ICONST_0);
 		m.visitInsn(Opcodes.IRETURN);
 
-		filter.filter(m, new FilterContextMock(), this);
+		filter.filter(m, context, this);
 
 		assertEquals(m.instructions.getFirst(), fromInclusive);
 		assertEquals(m.instructions.getLast(), toInclusive);
+	}
+
+	@Test
+	public void should_filter_classes_annotated_with_runtime_visible_org_immutables_value_Generated() {
+		final MethodNode m = new MethodNode(InstrSupport.ASM_API_VERSION, 0,
+				"hashCode", "()I", null, null);
+
+		m.visitInsn(Opcodes.ICONST_0);
+		m.visitInsn(Opcodes.IRETURN);
+
+		context.classAnnotations.add("Lorg/immutables/value/Generated;");
+
+		filter.filter(m, context, this);
+
+		assertEquals(m.instructions.getFirst(), fromInclusive);
+		assertEquals(m.instructions.getLast(), toInclusive);
+	}
+
+	@Test
+	public void should_not_filter_when_no_annotations() {
+		final MethodNode m = new MethodNode(InstrSupport.ASM_API_VERSION, 0,
+				"hashCode", "()I", null, null);
+
+		m.visitInsn(Opcodes.ICONST_0);
+		m.visitInsn(Opcodes.IRETURN);
+
+		filter.filter(m, context, this);
+
+		assertNull(fromInclusive);
+		assertNull(toInclusive);
+	}
+
+	@Test
+	public void should_not_filter_when_other_annotations() {
+		final MethodNode m = new MethodNode(InstrSupport.ASM_API_VERSION, 0,
+				"hashCode", "()I", null, null);
+		m.visitAnnotation("LOtherAnnotation;", true);
+
+		m.visitInsn(Opcodes.ICONST_0);
+		m.visitInsn(Opcodes.IRETURN);
+
+		context.classAnnotations.add("LOtherAnnotation;");
+
+		filter.filter(m, context, this);
+
+		assertNull(fromInclusive);
+		assertNull(toInclusive);
 	}
 
 	public void ignore(final AbstractInsnNode fromInclusive,
